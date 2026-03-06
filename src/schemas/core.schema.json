@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/core",
+  "title": "GitHub Event Core Schema",
+  "description": "Shared vocabulary and definitions for all GitHub activity event schemas",
+  "$vocabulary": {
+    "https://json-schema.org/draft/2020-12/vocab/core": true,
+    "https://json-schema.org/draft/2020-12/vocab/applicator": true,
+    "https://json-schema.org/draft/2020-12/vocab/validation": true
+  },
+  "$defs": {
+    "actor": {
+      "title": "Actor",
+      "description": "The user or app that triggered the event",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique identifier of the actor"
+        },
+        "login": {
+          "type": "string",
+          "description": "Login name of the actor"
+        },
+        "display_login": {
+          "type": "string",
+          "description": "Display name of the actor"
+        },
+        "gravatar_id": {
+          "type": "string",
+          "description": "Gravatar ID of the actor"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "API URL for the actor"
+        },
+        "avatar_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the actor's avatar"
+        }
+      },
+      "required": ["id", "login", "url"]
+    },
+    "user": {
+      "title": "User",
+      "description": "A GitHub user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique identifier of the user"
+        },
+        "login": {
+          "type": "string",
+          "description": "Login name of the user"
+        },
+        "node_id": {
+          "type": "string",
+          "description": "Node ID for the user"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["User", "Organization", "Bot"],
+          "description": "Type of the user account"
+        },
+        "site_admin": {
+          "type": "boolean",
+          "description": "Whether the user is a site administrator"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "API URL for the user"
+        },
+        "html_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTML URL for the user's profile"
+        },
+        "avatar_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the user's avatar"
+        }
+      },
+      "required": ["id", "login", "type", "url"]
+    },
+    "organization": {
+      "title": "Organization",
+      "description": "A GitHub organization",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique identifier of the organization"
+        },
+        "login": {
+          "type": "string",
+          "description": "Login name of the organization"
+        },
+        "node_id": {
+          "type": "string",
+          "description": "Node ID for the organization"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "API URL for the organization"
+        },
+        "repos_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL listing the organization's repositories"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Description of the organization"
+        }
+      },
+      "required": ["id", "login", "url"]
+    },
+    "repo": {
+      "title": "Repository",
+      "description": "A GitHub repository reference in event payloads",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique identifier of the repository"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the repository (owner/repo)"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "API URL for the repository"
+        }
+      },
+      "required": ["id", "name", "url"]
+    },
+    "event": {
+      "title": "GitHub Event",
+      "description": "Base structure shared by all GitHub activity events",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the event"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of GitHub event"
+        },
+        "actor": {
+          "$ref": "https://example.com/schemas/core#/$defs/actor"
+        },
+        "repo": {
+          "$ref": "https://example.com/schemas/core#/$defs/repo"
+        },
+        "org": {
+          "$ref": "https://example.com/schemas/core#/$defs/organization"
+        },
+        "public": {
+          "type": "boolean",
+          "description": "Whether the event is public"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the event was created"
+        }
+      },
+      "required": ["id", "type", "actor", "repo", "public", "created_at"]
+    }
+  }
+}
