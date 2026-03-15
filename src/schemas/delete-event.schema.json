@@ -12,8 +12,10 @@
       "const": "DeleteEvent"
     },
     "payload": {
-      "type": "object",
       "description": "Event-specific payload for a DeleteEvent",
+      "allOf": [
+        { "$ref": "https://example.com/schemas/core#/$defs/payload" }
+      ],
       "properties": {
         "ref": {
           "type": "string",
@@ -23,11 +25,6 @@
           "type": "string",
           "enum": ["branch", "tag"],
           "description": "The type of Git ref that was deleted"
-        },
-        "pusher_type": {
-          "type": "string",
-          "enum": ["user", "deploy_key"],
-          "description": "The pusher type for the event"
         }
       },
       "required": ["ref", "ref_type", "pusher_type"]

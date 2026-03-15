@@ -12,13 +12,11 @@
       "const": "CreateEvent"
     },
     "payload": {
-      "type": "object",
       "description": "Event-specific payload for a CreateEvent",
+      "allOf": [
+        { "$ref": "https://example.com/schemas/core#/$defs/payload" }
+      ],
       "properties": {
-        "ref": {
-          "type": ["string", "null"],
-          "description": "The git ref (or null if the event was for a repository)"
-        },
         "ref_type": {
           "type": "string",
           "enum": ["repository", "branch", "tag"],
@@ -31,11 +29,6 @@
         "description": {
           "type": ["string", "null"],
           "description": "The repository's description"
-        },
-        "pusher_type": {
-          "type": "string",
-          "enum": ["user", "deploy_key"],
-          "description": "The pusher type for the event"
         }
       },
       "required": ["ref_type", "master_branch", "pusher_type"]

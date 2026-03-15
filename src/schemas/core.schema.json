@@ -142,6 +142,26 @@
       },
       "required": ["id", "name", "url"]
     },
+    "payload": {
+      "title": "Event Payload",
+      "description": "Base payload structure shared by GitHub activity events",
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": ["string", "null"],
+          "description": "The git ref (may be null for repository-level events)"
+        },
+        "ref_type": {
+          "type": "string",
+          "description": "The type of Git ref"
+        },
+        "pusher_type": {
+          "type": "string",
+          "enum": ["user", "deploy_key"],
+          "description": "The pusher type for the event"
+        }
+      }
+    },
     "event": {
       "title": "GitHub Event",
       "description": "Base structure shared by all GitHub activity events",
