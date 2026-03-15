@@ -28,6 +28,19 @@ const baseEvent = {
   created_at: "2022-01-01T00:00:00Z",
 };
 
+const createPayload = {
+  ref: null,
+  ref_type: "repository",
+  master_branch: "main",
+  pusher_type: "user",
+};
+
+const deletePayload = {
+  ref: "feature-branch",
+  ref_type: "branch",
+  pusher_type: "user",
+};
+
 // ---------------------------------------------------------------------------
 // CreateEvent tests
 // ---------------------------------------------------------------------------
@@ -279,5 +292,143 @@ describe("validateDeleteEvent", () => {
     };
     const result = validateDeleteEvent(event);
     expect(result.valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Core event inheritance tests
+// Verify that every event type enforces every field that is required by the
+// shared core "event" definition, proving that all events originate from it.
+// ---------------------------------------------------------------------------
+
+describe("core event inheritance – CreateEvent", () => {
+  it("rejects a CreateEvent missing the top-level id", () => {
+    const { id: _id, ...eventWithoutId } = baseEvent;
+    const result = validateCreateEvent({
+      ...eventWithoutId,
+      type: "CreateEvent",
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a CreateEvent missing the top-level type", () => {
+    const result = validateCreateEvent({
+      ...baseEvent,
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a CreateEvent missing the top-level actor", () => {
+    const { actor: _actor, ...eventWithoutActor } = baseEvent;
+    const result = validateCreateEvent({
+      ...eventWithoutActor,
+      type: "CreateEvent",
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a CreateEvent missing the top-level repo", () => {
+    const { repo: _repo, ...eventWithoutRepo } = baseEvent;
+    const result = validateCreateEvent({
+      ...eventWithoutRepo,
+      type: "CreateEvent",
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a CreateEvent missing the top-level public flag", () => {
+    const { public: _public, ...eventWithoutPublic } = baseEvent;
+    const result = validateCreateEvent({
+      ...eventWithoutPublic,
+      type: "CreateEvent",
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a CreateEvent missing the top-level created_at timestamp", () => {
+    const { created_at: _createdAt, ...eventWithoutCreatedAt } = baseEvent;
+    const result = validateCreateEvent({
+      ...eventWithoutCreatedAt,
+      type: "CreateEvent",
+      payload: createPayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+});
+
+describe("core event inheritance – DeleteEvent", () => {
+  it("rejects a DeleteEvent missing the top-level id", () => {
+    const { id: _id, ...eventWithoutId } = baseEvent;
+    const result = validateDeleteEvent({
+      ...eventWithoutId,
+      type: "DeleteEvent",
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a DeleteEvent missing the top-level type", () => {
+    const result = validateDeleteEvent({
+      ...baseEvent,
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a DeleteEvent missing the top-level actor", () => {
+    const { actor: _actor, ...eventWithoutActor } = baseEvent;
+    const result = validateDeleteEvent({
+      ...eventWithoutActor,
+      type: "DeleteEvent",
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a DeleteEvent missing the top-level repo", () => {
+    const { repo: _repo, ...eventWithoutRepo } = baseEvent;
+    const result = validateDeleteEvent({
+      ...eventWithoutRepo,
+      type: "DeleteEvent",
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a DeleteEvent missing the top-level public flag", () => {
+    const { public: _public, ...eventWithoutPublic } = baseEvent;
+    const result = validateDeleteEvent({
+      ...eventWithoutPublic,
+      type: "DeleteEvent",
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
+  });
+
+  it("rejects a DeleteEvent missing the top-level created_at timestamp", () => {
+    const { created_at: _createdAt, ...eventWithoutCreatedAt } = baseEvent;
+    const result = validateDeleteEvent({
+      ...eventWithoutCreatedAt,
+      type: "DeleteEvent",
+      payload: deletePayload,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).not.toBeNull();
   });
 });
