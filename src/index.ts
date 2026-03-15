@@ -1,4 +1,9 @@
-export { validateCreateEvent, validateDeleteEvent, assertValid, SchemaValidationError } from "./validators/github-event.validator";
+export {
+  validateCreateEvent,
+  validateDeleteEvent,
+  assertValid,
+  SchemaValidationError,
+} from "./validators/github-event.validator";
 export type { ValidationResult } from "./validators/github-event.validator";
 export type {
   Actor,
