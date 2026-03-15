@@ -84,17 +84,20 @@ describe("assertValid – CreateEvent", () => {
       },
     };
 
+    expect(() =>
+      assertValid("https://example.com/schemas/create-event", invalidEvent),
+    ).toThrow(SchemaValidationError);
+
+    let caught: SchemaValidationError | undefined;
     try {
       assertValid("https://example.com/schemas/create-event", invalidEvent);
-      fail("Expected SchemaValidationError to be thrown");
     } catch (err) {
-      expect(err).toBeInstanceOf(SchemaValidationError);
-      const validationError = err as SchemaValidationError;
-      expect(validationError.schemaId).toBe(
-        "https://example.com/schemas/create-event",
-      );
-      expect(validationError.validationErrors.length).toBeGreaterThan(0);
+      caught = err as SchemaValidationError;
     }
+    expect(caught!.schemaId).toBe(
+      "https://example.com/schemas/create-event",
+    );
+    expect(caught!.validationErrors.length).toBeGreaterThan(0);
   });
 });
 
@@ -170,11 +173,13 @@ describe("assertValid – error details", () => {
   });
 
   it("error name is SchemaValidationError", () => {
+    let caught: Error | undefined;
     try {
       assertValid("https://example.com/schemas/create-event", {});
-      fail("Expected error");
     } catch (err) {
-      expect((err as Error).name).toBe("SchemaValidationError");
+      caught = err as Error;
     }
+    expect(caught).toBeInstanceOf(SchemaValidationError);
+    expect(caught!.name).toBe("SchemaValidationError");
   });
 });
