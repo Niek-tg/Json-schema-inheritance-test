@@ -39,7 +39,8 @@ function parseArguments(argv) {
   let publicTypesPath = DEFAULT_PUBLIC_TYPES_PATH;
   let schemaRegistryPath = DEFAULT_SCHEMA_REGISTRY_PATH;
 
-  for (let index = 0; index < argv.length; ) {
+  let index = 0;
+  while (index < argv.length) {
     const argument = argv[index];
     const nextValue = argv[index + 1];
 
@@ -215,7 +216,11 @@ function localizeSchemaReferences(schema, currentFileName, schemaIdToFileName) {
 
         const fragment = value.slice(schemaId.length);
         rewrittenReference =
-          fileName === currentFileName ? fragment || '#' : `./${fileName}${fragment}`;
+          fileName === currentFileName
+            ? fragment.length > 0
+              ? fragment
+              : '#'
+            : `./${fileName}${fragment}`;
         break;
       }
 
@@ -325,11 +330,10 @@ function createPublicTypesSource(schemaRecords, outputDirectory) {
     (schemaRecord) => schemaRecord.fileName !== 'core.schema.json',
   );
 
-  const relativeCoreImport = `./${path.basename('core.ts', '.ts')}`;
   const lines = [
     BANNER_COMMENT,
     '',
-    `export type {Actor, EventPayload, EventPayload as BasePayload, GitHubEvent, Organization, Repository, Repository as Repo, User} from "${relativeCoreImport}";`,
+    'export type {Actor, EventPayload, EventPayload as BasePayload, GitHubEvent, Organization, Repository, Repository as Repo, User} from "./core";',
   ];
 
   if (eventSchemaRecords.length > 0) {
