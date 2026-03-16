@@ -42,7 +42,6 @@ export interface Actor {
    * URL of the actor's avatar
    */
   avatar_url?: string;
-  [k: string]: unknown;
 }
 /**
  * A GitHub user
@@ -83,7 +82,6 @@ export interface User {
    * URL of the user's avatar
    */
   avatar_url?: string;
-  [k: string]: unknown;
 }
 /**
  * A GitHub organization
@@ -116,7 +114,6 @@ export interface Organization {
    * Description of the organization
    */
   description?: string | null;
-  [k: string]: unknown;
 }
 /**
  * A GitHub repository reference in event payloads
@@ -137,7 +134,6 @@ export interface Repository {
    * API URL for the repository
    */
   url: string;
-  [k: string]: unknown;
 }
 /**
  * Base payload structure shared by GitHub activity events

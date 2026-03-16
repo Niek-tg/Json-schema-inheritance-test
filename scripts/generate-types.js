@@ -1,29 +1,24 @@
 const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
 
 const { compileFromFile } = require('json-schema-to-typescript');
 
 const REPOSITORY_ROOT = path.resolve(__dirname, '..');
-const SCHEMA_DIRECTORY = path.join(REPOSITORY_ROOT, 'src', 'schemas');
+const DEFAULT_SCHEMA_DIRECTORY = path.join(REPOSITORY_ROOT, 'src', 'schemas');
 const DEFAULT_OUTPUT_DIRECTORY = path.join(
   REPOSITORY_ROOT,
   'src',
   'types',
   'generated',
 );
-
-const SCHEMA_FILES = [
-  'core.schema.json',
-  'create-event.schema.json',
-  'delete-event.schema.json',
-];
-
-const SCHEMA_ID_TO_FILE = new Map([
-  ['https://example.com/schemas/core', 'core.schema.json'],
-  ['https://example.com/schemas/create-event', 'create-event.schema.json'],
-  ['https://example.com/schemas/delete-event', 'delete-event.schema.json'],
-]);
+const DEFAULT_PUBLIC_TYPES_PATH = path.join(
+  DEFAULT_OUTPUT_DIRECTORY,
+  'public.ts',
+);
+const DEFAULT_SCHEMA_REGISTRY_PATH = path.join(
+  DEFAULT_SCHEMA_DIRECTORY,
+  'registry.ts',
+);
 
 const BANNER_COMMENT = `/* eslint-disable */\n/**\n * This file was automatically generated from the JSON schemas.\n * DO NOT MODIFY IT BY HAND. Instead, update the source schema and rerun\n * npm run generate:types.\n */`;
 
@@ -40,24 +35,107 @@ const ANNOTATION_KEYS = new Set([
 
 function parseArguments(argv) {
   let outputDirectory = DEFAULT_OUTPUT_DIRECTORY;
+  let schemaDirectory = DEFAULT_SCHEMA_DIRECTORY;
+  let publicTypesPath = DEFAULT_PUBLIC_TYPES_PATH;
+  let schemaRegistryPath = DEFAULT_SCHEMA_REGISTRY_PATH;
 
-  for (let index = 0; index < argv.length; index += 1) {
+  for (let index = 0; index < argv.length; ) {
     const argument = argv[index];
+    const nextValue = argv[index + 1];
 
-    if (argument === '--output-dir') {
-      const nextValue = argv[index + 1];
+    if (
+      argument === '--output-dir' ||
+      argument === '--schema-dir' ||
+      argument === '--public-types-path' ||
+      argument === '--schema-registry-path'
+    ) {
       if (!nextValue) {
-        throw new Error('Missing value for --output-dir');
+        throw new Error(`Missing value for ${argument}`);
       }
-      outputDirectory = path.resolve(nextValue);
-      index += 1;
+
+      if (argument === '--output-dir') {
+        outputDirectory = path.resolve(nextValue);
+      } else if (argument === '--schema-dir') {
+        schemaDirectory = path.resolve(nextValue);
+      } else if (argument === '--public-types-path') {
+        publicTypesPath = path.resolve(nextValue);
+      } else {
+        schemaRegistryPath = path.resolve(nextValue);
+      }
+
+      index += 2;
       continue;
     }
 
     throw new Error(`Unknown argument: ${argument}`);
   }
 
-  return { outputDirectory };
+  return {
+    outputDirectory,
+    publicTypesPath,
+    schemaDirectory,
+    schemaRegistryPath,
+  };
+}
+
+function toPascalCase(value) {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .join('');
+}
+
+function toCamelCase(value) {
+  const pascalCaseValue = toPascalCase(value);
+  return pascalCaseValue[0].toLowerCase() + pascalCaseValue.slice(1);
+}
+
+async function listSchemaFiles(schemaDirectory) {
+  const directoryEntries = await fs.readdir(schemaDirectory, {
+    withFileTypes: true,
+  });
+
+  const schemaFiles = directoryEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.schema.json'))
+    .map((entry) => entry.name)
+    .sort((left, right) => {
+      if (left === 'core.schema.json') {
+        return -1;
+      }
+      if (right === 'core.schema.json') {
+        return 1;
+      }
+      return left.localeCompare(right);
+    });
+
+  if (!schemaFiles.includes('core.schema.json')) {
+    throw new Error('Expected src/schemas to contain core.schema.json');
+  }
+
+  return schemaFiles;
+}
+
+async function loadSchemaRecords(schemaDirectory) {
+  const schemaFiles = await listSchemaFiles(schemaDirectory);
+
+  return Promise.all(
+    schemaFiles.map(async (fileName) => {
+      const schemaPath = path.join(schemaDirectory, fileName);
+      const schema = JSON.parse(await fs.readFile(schemaPath, 'utf8'));
+      const baseName = fileName.replace(/\.schema\.json$/, '');
+
+      return {
+        baseName,
+        fileName,
+        importName: `${toCamelCase(baseName)}Schema`,
+        outputFileName: `${baseName}.ts`,
+        schema,
+        schemaId: typeof schema.$id === 'string' ? schema.$id : fileName,
+        typeName: toPascalCase(baseName),
+      };
+    }),
+  );
 }
 
 function normalizeAllOf(schema) {
@@ -103,17 +181,16 @@ function normalizeAllOf(schema) {
     ...annotationEntries,
     [
       'allOf',
-      [
-        ...normalized.allOf,
-        Object.fromEntries(structuralEntries),
-      ],
+      [...normalized.allOf, Object.fromEntries(structuralEntries)],
     ],
   ]);
 }
 
-function localizeSchemaReferences(schema, currentFileName) {
+function localizeSchemaReferences(schema, currentFileName, schemaIdToFileName) {
   if (Array.isArray(schema)) {
-    return schema.map((item) => localizeSchemaReferences(item, currentFileName));
+    return schema.map((item) =>
+      localizeSchemaReferences(item, currentFileName, schemaIdToFileName),
+    );
   }
 
   if (!schema || typeof schema !== 'object') {
@@ -124,25 +201,21 @@ function localizeSchemaReferences(schema, currentFileName) {
 
   for (const [key, value] of Object.entries(schema)) {
     if (key === '$id' && typeof value === 'string') {
-      localized[key] = SCHEMA_ID_TO_FILE.get(value) ?? value;
+      localized[key] = schemaIdToFileName.get(value) ?? value;
       continue;
     }
 
     if (key === '$ref' && typeof value === 'string') {
       let rewrittenReference = value;
 
-      for (const [schemaId, fileName] of SCHEMA_ID_TO_FILE.entries()) {
+      for (const [schemaId, fileName] of schemaIdToFileName.entries()) {
         if (!value.startsWith(schemaId)) {
           continue;
         }
 
         const fragment = value.slice(schemaId.length);
-        const suffix = fragment.length > 0 ? fragment : '';
-
         rewrittenReference =
-          fileName === currentFileName
-            ? suffix || '#'
-            : `./${fileName}${suffix}`;
+          fileName === currentFileName ? fragment || '#' : `./${fileName}${fragment}`;
         break;
       }
 
@@ -150,28 +223,30 @@ function localizeSchemaReferences(schema, currentFileName) {
       continue;
     }
 
-    localized[key] = localizeSchemaReferences(value, currentFileName);
+    localized[key] = localizeSchemaReferences(value, currentFileName, schemaIdToFileName);
   }
 
   return localized;
 }
 
-async function createTemporarySchemaDirectory() {
+async function createTemporarySchemaDirectory(schemaRecords) {
   const temporaryDirectory = await fs.mkdtemp(
-    path.join(os.tmpdir(), 'json-schema-types-'),
+    path.join(require('node:os').tmpdir(), 'json-schema-types-'),
+  );
+  const schemaIdToFileName = new Map(
+    schemaRecords.map((schemaRecord) => [schemaRecord.schemaId, schemaRecord.fileName]),
   );
 
   await Promise.all(
-    SCHEMA_FILES.map(async (schemaFileName) => {
-      const schemaPath = path.join(SCHEMA_DIRECTORY, schemaFileName);
-      const schema = JSON.parse(await fs.readFile(schemaPath, 'utf8'));
+    schemaRecords.map(async (schemaRecord) => {
       const preparedSchema = localizeSchemaReferences(
-        normalizeAllOf(schema),
-        schemaFileName,
+        normalizeAllOf(schemaRecord.schema),
+        schemaRecord.fileName,
+        schemaIdToFileName,
       );
 
       await fs.writeFile(
-        path.join(temporaryDirectory, schemaFileName),
+        path.join(temporaryDirectory, schemaRecord.fileName),
         `${JSON.stringify(preparedSchema, null, 2)}\n`,
       );
     }),
@@ -180,9 +255,9 @@ async function createTemporarySchemaDirectory() {
   return temporaryDirectory;
 }
 
-async function writeGeneratedFile(outputDirectory, fileName, contents) {
-  await fs.mkdir(outputDirectory, { recursive: true });
-  await fs.writeFile(path.join(outputDirectory, fileName), contents);
+async function writeGeneratedFile(filePath, contents) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, contents);
 }
 
 async function compileCoreTypes(temporaryDirectory, outputDirectory) {
@@ -195,54 +270,169 @@ async function compileCoreTypes(temporaryDirectory, outputDirectory) {
     },
   );
 
-  await writeGeneratedFile(outputDirectory, 'core.ts', coreTypes);
+  await writeGeneratedFile(path.join(outputDirectory, 'core.ts'), coreTypes);
 }
 
-async function compileEventTypes(
-  temporaryDirectory,
-  outputDirectory,
-  schemaFileName,
-  typeName,
-) {
+function findTypeConst(schema) {
+  const typeDefinition =
+    schema && typeof schema === 'object' && schema.properties && schema.properties.type;
+
+  if (
+    typeDefinition &&
+    typeof typeDefinition === 'object' &&
+    !Array.isArray(typeDefinition) &&
+    typeof typeDefinition.const === 'string'
+  ) {
+    return typeDefinition.const;
+  }
+
+  return null;
+}
+
+function hasPayloadProperty(schema) {
+  return Boolean(
+    schema &&
+      typeof schema === 'object' &&
+      schema.properties &&
+      typeof schema.properties === 'object' &&
+      !Array.isArray(schema.properties) &&
+      schema.properties.payload,
+  );
+}
+
+async function compileEventTypes(temporaryDirectory, outputDirectory, schemaRecord) {
   const generatedTypes = await compileFromFile(
-    path.join(temporaryDirectory, schemaFileName),
+    path.join(temporaryDirectory, schemaRecord.fileName),
     {
       bannerComment: BANNER_COMMENT,
       cwd: temporaryDirectory,
       declareExternallyReferenced: false,
       customName: (schema, fallbackName) =>
-        schema.$id === schemaFileName ? typeName : fallbackName,
+        schema.$id === schemaRecord.fileName ? schemaRecord.typeName : fallbackName,
     },
   );
 
-  const output = `import type {EventPayload, GitHubEvent} from "./core";\n\n${generatedTypes.trim()}\n\nexport type ${typeName}Payload = ${typeName}["payload"];\n`;
+  const output = `import type {EventPayload, GitHubEvent} from "./core";\n\n${generatedTypes.trim()}\n\nexport type ${schemaRecord.typeName}Payload = ${schemaRecord.typeName}["payload"];\n`;
 
   await writeGeneratedFile(
-    outputDirectory,
-    `${schemaFileName.replace('.schema.json', '.ts')}`,
+    path.join(outputDirectory, schemaRecord.outputFileName),
     output,
   );
 }
 
+function createPublicTypesSource(schemaRecords, outputDirectory) {
+  const eventSchemaRecords = schemaRecords.filter(
+    (schemaRecord) => schemaRecord.fileName !== 'core.schema.json',
+  );
+
+  const relativeCoreImport = `./${path.basename('core.ts', '.ts')}`;
+  const lines = [
+    BANNER_COMMENT,
+    '',
+    `export type {Actor, EventPayload, EventPayload as BasePayload, GitHubEvent, Organization, Repository, Repository as Repo, User} from "${relativeCoreImport}";`,
+  ];
+
+  if (eventSchemaRecords.length > 0) {
+    lines.push('');
+  }
+
+  for (const schemaRecord of eventSchemaRecords) {
+    const importPath = `./${path.basename(schemaRecord.outputFileName, '.ts')}`;
+    const payloadTypeName = `${schemaRecord.typeName}Payload`;
+    const typeConst = findTypeConst(schemaRecord.schema);
+    const hasPayload = hasPayloadProperty(schemaRecord.schema);
+    const importSpecifiers = [
+      `${schemaRecord.typeName} as Generated${schemaRecord.typeName}`,
+    ];
+
+    if (hasPayload) {
+      importSpecifiers.push(payloadTypeName);
+    }
+
+    lines.push(
+      `import type {${importSpecifiers.join(', ')}} from "${importPath}";`,
+    );
+
+    if (hasPayload) {
+      lines.push(`export type {${payloadTypeName}} from "${importPath}";`);
+    }
+
+    const overrideProperties = [];
+    if (typeConst) {
+      overrideProperties.push(`type: ${JSON.stringify(typeConst)};`);
+    }
+    if (hasPayload) {
+      overrideProperties.push(`payload: ${payloadTypeName};`);
+    }
+
+    if (overrideProperties.length > 0) {
+      lines.push(
+        `export type ${schemaRecord.typeName} = Generated${schemaRecord.typeName} & { ${overrideProperties.join(' ')} };`,
+      );
+    } else {
+      lines.push(
+        `export type ${schemaRecord.typeName} = Generated${schemaRecord.typeName};`,
+      );
+    }
+
+    lines.push('');
+  }
+
+  lines.push('export interface SchemaMap {');
+  for (const schemaRecord of eventSchemaRecords) {
+    lines.push(`  ${JSON.stringify(schemaRecord.schemaId)}: ${schemaRecord.typeName};`);
+  }
+  lines.push('}');
+  lines.push('');
+
+  return `${lines.join('\n')}`;
+}
+
+function createSchemaRegistrySource(schemaRecords) {
+  const importLines = schemaRecords.map(
+    (schemaRecord) =>
+      `import ${schemaRecord.importName} from "./${schemaRecord.fileName}";`,
+  );
+  const schemaList = schemaRecords
+    .map((schemaRecord) => `  ${schemaRecord.importName} as object,`)
+    .join('\n');
+
+  return `${BANNER_COMMENT}\n\n${importLines.join('\n')}\n\nexport const schemas = [\n${schemaList}\n] as const;\n`;
+}
+
 async function generateTypes(options = {}) {
   const outputDirectory = options.outputDirectory ?? DEFAULT_OUTPUT_DIRECTORY;
-  const temporaryDirectory = await createTemporarySchemaDirectory();
+  const schemaDirectory = options.schemaDirectory ?? DEFAULT_SCHEMA_DIRECTORY;
+  const publicTypesPath = options.publicTypesPath ?? DEFAULT_PUBLIC_TYPES_PATH;
+  const schemaRegistryPath =
+    options.schemaRegistryPath ?? DEFAULT_SCHEMA_REGISTRY_PATH;
+  const schemaRecords = await loadSchemaRecords(schemaDirectory);
+  const temporaryDirectory = await createTemporarySchemaDirectory(schemaRecords);
 
   await compileCoreTypes(temporaryDirectory, outputDirectory);
-  await compileEventTypes(
-    temporaryDirectory,
-    outputDirectory,
-    'create-event.schema.json',
-    'CreateEvent',
-  );
-  await compileEventTypes(
-    temporaryDirectory,
-    outputDirectory,
-    'delete-event.schema.json',
-    'DeleteEvent',
+
+  await Promise.all(
+    schemaRecords
+      .filter((schemaRecord) => schemaRecord.fileName !== 'core.schema.json')
+      .map((schemaRecord) =>
+        compileEventTypes(temporaryDirectory, outputDirectory, schemaRecord),
+      ),
   );
 
-  return outputDirectory;
+  await writeGeneratedFile(
+    publicTypesPath,
+    createPublicTypesSource(schemaRecords, outputDirectory),
+  );
+  await writeGeneratedFile(
+    schemaRegistryPath,
+    createSchemaRegistrySource(schemaRecords),
+  );
+
+  return {
+    outputDirectory,
+    publicTypesPath,
+    schemaRegistryPath,
+  };
 }
 
 module.exports = { generateTypes };
