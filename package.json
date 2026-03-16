@@ -7,14 +7,24 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "generate:mock": "ts-node src/generators/mock-generator.ts"
   },
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.ts"],
+    "testMatch": [
+      "**/tests/**/*.test.ts"
+    ],
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", { "tsconfig": { "resolveJsonModule": true } }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "resolveJsonModule": true
+          }
+        }
+      ]
     }
   },
   "repository": {
@@ -30,6 +40,7 @@
   },
   "homepage": "https://github.com/Niek-tg/Json-schema-inheritance-test#readme",
   "dependencies": {
+    "@faker-js/faker": "^8.4.1",
     "@types/node": "^25.3.5",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
