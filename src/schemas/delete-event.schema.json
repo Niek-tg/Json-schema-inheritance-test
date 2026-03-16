@@ -27,8 +27,10 @@
           "description": "The type of Git ref that was deleted"
         }
       },
-      "required": ["ref", "ref_type", "pusher_type"]
+      "required": ["ref", "ref_type", "pusher_type"],
+      "unevaluatedProperties": false
     }
   },
-  "required": ["payload"]
+  "required": ["payload"],
+  "unevaluatedProperties": false
 }

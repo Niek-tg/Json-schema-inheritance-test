@@ -31,8 +31,10 @@
           "description": "The repository's description"
         }
       },
-      "required": ["ref_type", "master_branch", "pusher_type"]
+      "required": ["ref_type", "master_branch", "pusher_type"],
+      "unevaluatedProperties": false
     }
   },
-  "required": ["payload"]
+  "required": ["payload"],
+  "unevaluatedProperties": false
 }

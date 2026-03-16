@@ -166,6 +166,38 @@ describe("validateCreateEvent", () => {
     const result = validateCreateEvent(event);
     expect(result.valid).toBe(false);
   });
+
+  it("rejects a CreateEvent with unexpected top-level properties", () => {
+    const event = {
+      ...baseEvent,
+      type: "CreateEvent",
+      unexpected: true,
+      payload: {
+        ref: null,
+        ref_type: "repository",
+        master_branch: "main",
+        pusher_type: "user",
+      },
+    };
+    const result = validateCreateEvent(event);
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a CreateEvent with unexpected payload properties", () => {
+    const event = {
+      ...baseEvent,
+      type: "CreateEvent",
+      payload: {
+        ref: null,
+        ref_type: "repository",
+        master_branch: "main",
+        pusher_type: "user",
+        unexpected: "value",
+      },
+    };
+    const result = validateCreateEvent(event);
+    expect(result.valid).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -270,6 +302,24 @@ describe("validateDeleteEvent", () => {
     const event = {
       ...baseEvent,
       actor: { id: 1, login: "octocat" }, // url missing
+      type: "DeleteEvent",
+      payload: {
+        ref: "old-branch",
+        ref_type: "branch",
+        pusher_type: "user",
+      },
+    };
+    const result = validateDeleteEvent(event);
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a DeleteEvent with unexpected nested actor properties", () => {
+    const event = {
+      ...baseEvent,
+      actor: {
+        ...actor,
+        unexpected: "value",
+      },
       type: "DeleteEvent",
       payload: {
         ref: "old-branch",

@@ -41,7 +41,8 @@
           "description": "URL of the actor's avatar"
         }
       },
-      "required": ["id", "login", "url"]
+      "required": ["id", "login", "url"],
+      "additionalProperties": false
     },
     "user": {
       "title": "User",
@@ -85,7 +86,8 @@
           "description": "URL of the user's avatar"
         }
       },
-      "required": ["id", "login", "type", "url"]
+      "required": ["id", "login", "type", "url"],
+      "additionalProperties": false
     },
     "organization": {
       "title": "Organization",
@@ -119,7 +121,8 @@
           "description": "Description of the organization"
         }
       },
-      "required": ["id", "login", "url"]
+      "required": ["id", "login", "url"],
+      "additionalProperties": false
     },
     "repo": {
       "title": "Repository",
@@ -140,7 +143,8 @@
           "description": "API URL for the repository"
         }
       },
-      "required": ["id", "name", "url"]
+      "required": ["id", "name", "url"],
+      "additionalProperties": false
     },
     "payload": {
       "title": "Event Payload",
