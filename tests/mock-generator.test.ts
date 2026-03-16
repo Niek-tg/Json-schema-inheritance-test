@@ -40,7 +40,7 @@ describe("mock generator CLI", () => {
         "create-event",
       ],
       {
-        cwd: "/home/runner/work/Json-schema-inheritance-test/Json-schema-inheritance-test",
+        cwd: process.cwd(),
         encoding: "utf8",
       },
     );
