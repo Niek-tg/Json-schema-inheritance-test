@@ -1,8 +1,8 @@
 import Ajv2020, { ErrorObject, ValidateFunction } from "ajv/dist/2020";
 import addFormats from "ajv-formats";
 import coreSchema from "../schemas/core.schema.json";
-import createEventSchema from "../schemas/create-event.schema.json";
-import deleteEventSchema from "../schemas/delete-event.schema.json";
+import createEventSchema from "../schemas/create-event.schema";
+import deleteEventSchema from "../schemas/delete-event.schema";
 import type { SchemaMap } from "../types/github-events";
 
 /**
